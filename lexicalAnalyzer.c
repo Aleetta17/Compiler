@@ -1,147 +1,94 @@
-#include<stdio.h>
-#include<string.h>
-#include<ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
-int isKeyword(char s[]){
-	char kw[34][12] = {"auto","break","case","char","const","continue",
-	"default","do","double","else","enum","extern","float","for","goto","if",
-	"int","long","register","return","short","signed","sizeof","static",
-	"struct","switch","typedef","union","unsigned","void","volatile","while",
-	"include","define"};
-	int i;
+int isKeyword(char word[])
+{
+    char keywords[][10] = {"int","char","float","if","else","while","for","return","void"};
 
-	for(i=0; i<34; i++)
-		if(strcmp(s, kw[i]) == 0)
-			return 1;
-	return 0;
+    for(int i=0; i<9; i++)
+        if(strcmp(word, keywords[i]) == 0)
+            return 1;
+
+    return 0;
 }
 
-void printToken(int line, int *tokenNo, char token[], char lexeme[]){
-	printf("%-10d %-10d %-18s %s\n", line, *tokenNo, token, lexeme);
-	(*tokenNo)++;
-}
+int main()
+{
+    FILE *fp = fopen("input.txt", "r");
+    char word[50];
+    int ch, i, line=1, tokenNo=1;
 
-void printProgram(FILE *fp){
-	char line[200];
-	int n = 1;
+    if(fp == NULL)
+    {
+        printf("File not found");
+        return 0;
+    }
 
-	printf("Original Program\n----------------\n");
-	while(fgets(line, sizeof(line), fp) != NULL)
-		printf("%3d: %s", n++, line);
-}
+    printf("%-8s %-8s %-18s %s\n", "Line", "Token", "Type", "Lexeme");
+    printf("-----------------------------------------------------\n");
 
-int main(){
-	FILE *fp;
-	int c, next, quote, line=1, tokenNo=1, i;
-	char lexeme[100], token[20];
+    while((ch = fgetc(fp)) != EOF)
+    {
+        if(ch == '\n')
+        {
+            line++;
+            continue;
+        }
 
-	fp = fopen("input.txt", "r");
-	if(fp == NULL){
-		printf("Cannot open input.txt\n");
-		return 0;
-	}
+        if(isspace(ch))
+            continue;
 
-	printProgram(fp);
-	rewind(fp);
+        if(isalpha(ch))
+        {
+            i=0;
+            do {
+                word[i++] = ch;
+                ch = fgetc(fp);
+            } while(isalnum(ch));
 
-	printf("\n\nToken Table\n-----------\n");
-	printf("%-10s %-10s %-18s %s\n", "Line no", "Token no", "Token", "Lexeme");
-	printf("%-10s %-10s %-18s %s\n", "-------", "--------", "-----", "------");
+            word[i]='\0';
+            if(ch != EOF) ungetc(ch, fp);
 
-	while((c = getc(fp)) != EOF){
-		if(c == '\n'){
-			line++;
-			continue;
-		}
-		if(c == ' ' || c == '\t')
-			continue;
+            printf("%-8d %-8d %-18s %s\n", line, tokenNo++,
+                   isKeyword(word) ? "Keyword" : "Identifier", word);
+        }
 
-		if(isalpha(c) || c == '_'){
-			i = 0;
-			while(isalnum(c) || c == '_'){
-				lexeme[i++] = c;
-				c = getc(fp);
-			}
-			lexeme[i] = '\0';
-			if(c != EOF)
-				ungetc(c, fp);
-			strcpy(token, isKeyword(lexeme) ? "Keyword" : "Identifier");
-		}
-		else if(isdigit(c)){
-			i = 0;
-			while(isdigit(c) || c == '.'){
-				lexeme[i++] = c;
-				c = getc(fp);
-			}
-			lexeme[i] = '\0';
-			if(c != EOF)
-				ungetc(c, fp);
-			strcpy(token, "Numeric Literal");
-		}
-		else if(c == '"' || c == '\''){
-			quote = c;
-			i = 0;
-			lexeme[i++] = c;
-			while((c = getc(fp)) != quote && c != EOF)
-				lexeme[i++] = c;
-			if(c != EOF)
-				lexeme[i++] = c;
-			lexeme[i] = '\0';
-			strcpy(token, quote == '"' ? "String Literal" : "Character Literal");
-		}
-		else if(c == '/'){
-			next = getc(fp);
-			if(next == '/'){
-				while((c = getc(fp)) != '\n' && c != EOF);
-				if(c == '\n')
-					line++;
-				continue;
-			}
-			if(next == '*'){
-				while((c = getc(fp)) != EOF){
-					if(c == '\n')
-						line++;
-					if(c == '*' && (next = getc(fp)) == '/')
-						break;
-					if(c == '*' && next != EOF)
-						ungetc(next, fp);
-				}
-				continue;
-			}
-			if(next != EOF)
-				ungetc(next, fp);
-			strcpy(lexeme, "/");
-			strcpy(token, "Operator");
-		}
-		else if(strchr("+-*%=<>!&|", c) != NULL){
-			lexeme[0] = c;
-			next = getc(fp);
-			if((c=='=' && next=='=') || (c=='!' && next=='=') ||
-			   (c=='<' && next=='=') || (c=='>' && next=='=') ||
-			   (c=='+' && next=='+') || (c=='-' && next=='-') ||
-			   (c=='&' && next=='&') || (c=='|' && next=='|')){
-				lexeme[1] = next;
-				lexeme[2] = '\0';
-			}
-			else{
-				lexeme[1] = '\0';
-				if(next != EOF)
-					ungetc(next, fp);
-			}
-			strcpy(token, "Operator");
-		}
-		else{
-			lexeme[0] = c;
-			lexeme[1] = '\0';
-			if(strchr("(){}[];,.#@", c) != NULL)
-				strcpy(token, "Special Symbol");
-			else
-				strcpy(token, "Unknown");
-		}
+        else if(isdigit(ch))
+        {
+            i=0;
+            do {
+                word[i++] = ch;
+                ch = fgetc(fp);
+            } while(isdigit(ch));
 
-		printToken(line, &tokenNo, token, lexeme);
-	}
+            word[i]='\0';
+            if(ch != EOF) ungetc(ch, fp);
 
-	fclose(fp);
-	return 0;
+            printf("%-8d %-8d %-18s %s\n", line, tokenNo++, "Number", word);
+        }
+
+        else if(ch == '"')
+        {
+            i=0;
+            word[i++] = '"';
+
+            while((ch=fgetc(fp)) != '"' && ch != EOF)
+                word[i++] = ch;
+
+            if(ch == '"') word[i++] = '"';
+            word[i]='\0';
+
+            printf("%-8d %-8d %-18s %s\n", line, tokenNo++, "String Literal", word);
+        }
+
+        else if(strchr("+-*/=", ch))
+            printf("%-8d %-8d %-18s %c\n", line, tokenNo++, "Operator", ch);
+
+        else if(strchr(";,(){}", ch))
+            printf("%-8d %-8d %-18s %c\n", line, tokenNo++, "Special Symbol", ch);
+    }
+
+    fclose(fp);
+    return 0;
 }
